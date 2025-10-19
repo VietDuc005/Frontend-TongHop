@@ -34,6 +34,7 @@ const Login = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-xl shadow-xl p-8">
+          {/* LOGO + TITLE */}
           <div className="flex items-center justify-center mb-8">
             <Wrench className="w-8 h-8 text-blue-600" />
             <h1 className="text-2xl font-bold text-gray-800 ml-2">
@@ -42,9 +43,10 @@ const Login = () => {
           </div>
 
           <h2 className="text-xl font-semibold text-gray-800 mb-6 text-center">
-            Đăng nhập
+            Đăng nhập hệ thống
           </h2>
 
+          {/* FORM */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <input
               type="text"
@@ -81,21 +83,10 @@ const Login = () => {
               {loading ? "Đang xử lý..." : "Đăng nhập"}
             </button>
           </form>
-
-          <p className="text-center text-gray-600 mt-4">
-            Chưa có tài khoản?{" "}
-            <button
-              onClick={() => navigate("/register")}
-              className="text-blue-600 font-semibold hover:underline"
-            >
-              Đăng ký
-            </button>
-          </p>
         </div>
       </div>
     </div>
   );
 };
 
-// ✅ Quan trọng: thêm export default
 export default Login;

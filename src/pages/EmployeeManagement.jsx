@@ -1,26 +1,68 @@
-import React from "react";
-import Table from "../components/common/Table"; // Đường dẫn tới component TableView
-import { toMillions, fmtDate } from "../utils/helpers"; // (nếu bạn có helper riêng)
+// src/pages/EmployeeManagement.jsx
+import React, { useState } from "react";
+import Table from "../components/common/Table";
+import { Plus } from "lucide-react";
 
 const EmployeeManagement = () => {
-  // ======= Dữ liệu mẫu =======
-  const employees = [
-    { maTK: "TK001", tenDangNhap: "admin", vaiTro: "Admin", email: "admin@garage.com", trangThai: "Hoạt động", ngayTao: "2023-01-01" },
-    { maTK: "TK002", tenDangNhap: "nhanvien1", vaiTro: "Nhân viên", email: "nv1@garage.com", trangThai: "Hoạt động", ngayTao: "2023-03-15" },
-    { maTK: "TK003", tenDangNhap: "nhanvien2", vaiTro: "Nhân viên", email: "nv2@garage.com", trangThai: "Hoạt động", ngayTao: "2023-06-20" },
-    { maTK: "TK004", tenDangNhap: "nhanvien3", vaiTro: "Nhân viên", email: "nv3@garage.com", trangThai: "Tạm khóa", ngayTao: "2023-08-10" },
-  ];
+  const [employees] = useState([
+    {
+      id: "TK001",
+      tenDangNhap: "admin",
+      vaiTro: "Admin",
+      email: "admin@garage.com",
+      trangThai: "Hoạt động",
+      ngayTao: "2023-01-01",
+    },
+    {
+      id: "TK002",
+      tenDangNhap: "nhanvien1",
+      vaiTro: "Nhân viên",
+      email: "nv1@garage.com",
+      trangThai: "Hoạt động",
+      ngayTao: "2023-03-15",
+    },
+    {
+      id: "TK003",
+      tenDangNhap: "nhanvien2",
+      vaiTro: "Nhân viên",
+      email: "nv2@garage.com",
+      trangThai: "Hoạt động",
+      ngayTao: "2023-06-20",
+    },
+    {
+      id: "TK004",
+      tenDangNhap: "nhanvien3",
+      vaiTro: "Nhân viên",
+      email: "nv3@garage.com",
+      trangThai: "Tạm khóa",
+      ngayTao: "2023-08-10",
+    },
+  ]);
 
-  // ======= Cấu hình cột =======
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState("Tất cả vai trò");
+
+  // --- Lọc nhân viên ---
+  const filteredEmployees = employees.filter((e) => {
+    const matchSearch = Object.values(e)
+      .join(" ")
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const matchRole =
+      roleFilter === "Tất cả vai trò" || e.vaiTro === roleFilter;
+    return matchSearch && matchRole;
+  });
+
+  // --- Cấu hình cột cho bảng ---
   const columns = [
-    { key: "maTK", label: "Mã TK" },
+    { key: "id", label: "Mã TK" },
     { key: "tenDangNhap", label: "Tên đăng nhập" },
     {
       key: "vaiTro",
       label: "Vai trò",
       render: (value) => (
         <span
-          className={`px-2 py-1 rounded text-xs font-semibold ${
+          className={`px-2 py-1 text-xs font-semibold rounded-full ${
             value === "Admin"
               ? "bg-purple-100 text-purple-800"
               : "bg-blue-100 text-blue-800"
@@ -36,10 +78,10 @@ const EmployeeManagement = () => {
       label: "Trạng thái",
       render: (value) => (
         <span
-          className={`px-2 py-1 rounded text-xs font-semibold ${
+          className={`px-3 py-1 text-xs font-semibold rounded-full ${
             value === "Hoạt động"
               ? "bg-green-100 text-green-800"
-              : "bg-gray-100 text-gray-800"
+              : "bg-gray-200 text-gray-700"
           }`}
         >
           {value}
@@ -49,17 +91,51 @@ const EmployeeManagement = () => {
     { key: "ngayTao", label: "Ngày tạo" },
   ];
 
-  // ======= Render giao diện =======
+  // --- Hành động ---
+  const handleEdit = (row) => alert(`📝 Chỉnh sửa tài khoản: ${row.tenDangNhap}`);
+  const handleLock = (row) => alert(`🔒 Khóa/Mở khóa tài khoản: ${row.tenDangNhap}`);
+
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">
-        Quản lý nhân viên
-      </h2>
+      {/* --- Header + nút thêm --- */}
+      <div className="flex items-center justify-between bg-white p-6 rounded-xl shadow">
+        <h2 className="text-xl font-bold text-gray-800">Quản lý nhân viên</h2>
+        <button className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold">
+          <Plus size={18} /> Thêm nhân viên mới
+        </button>
+      </div>
+
+      {/* --- Thanh tìm kiếm & lọc --- */}
+      <div className="bg-white p-6 rounded-xl shadow flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
+        <div className="flex-1 flex items-center gap-4">
+          <input
+            type="text"
+            placeholder="Tìm theo tên, email, vai trò..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+          />
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+          >
+            <option>Tất cả vai trò</option>
+            <option>Admin</option>
+            <option>Nhân viên</option>
+          </select>
+        </div>
+        <button className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-semibold">
+          Tìm kiếm
+        </button>
+      </div>
+
+      {/* --- Bảng nhân viên tái sử dụng Table.jsx --- */}
       <Table
-        title="Danh sách nhân viên"
-        data={employees}
         columns={columns}
-        searchableKeys={["maTK", "tenDangNhap", "email", "vaiTro", "trangThai"]}
+        data={filteredEmployees}
+        onEdit={handleEdit}
+        onDelete={handleLock} // tái sử dụng nút delete làm nút “Khóa”
       />
     </div>
   );

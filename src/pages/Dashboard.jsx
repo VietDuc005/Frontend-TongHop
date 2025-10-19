@@ -1,6 +1,6 @@
-// src/pages/Dashboard.jsx
 import React from "react";
 import {
+  ResponsiveContainer,
   BarChart,
   Bar,
   LineChart,
@@ -13,12 +13,19 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer,
 } from "recharts";
-import { DollarSign, Car, Users, FileText } from "lucide-react";
-import StatsCard from "../components/common/StatsCard"; // ✅ export default
-import { formatCurrency } from "../utils/helpers"; // ✅ helper định dạng tiền
+import {
+  DollarSign,
+  Car,
+  Users,
+  FileText,
+  Wrench,
+  Star,
+} from "lucide-react";
+import StatsCard from "../components/common/StatsCard";
+import { formatCurrency } from "../utils/helpers";
 
+// =================== DỮ LIỆU GIẢ LẬP ===================
 const Dashboard = () => {
   const statsCards = [
     {
@@ -60,10 +67,31 @@ const Dashboard = () => {
     { month: "T6", revenue: 67000000 },
   ];
 
+  const mechanicStats = [
+    { name: "Nguyễn Văn Thợ", soPhieu: 35, doanhThu: 45 },
+    { name: "Trần Văn Sửa", soPhieu: 28, doanhThu: 38 },
+    { name: "Lê Văn Chữa", soPhieu: 42, doanhThu: 52 },
+    { name: "Phạm Văn Bảo", soPhieu: 31, doanhThu: 41 },
+  ];
+
   const serviceData = [
     { name: "Bảo dưỡng", value: 35, color: "#3b82f6" },
     { name: "Sửa chữa", value: 45, color: "#ef4444" },
     { name: "Thay thế", value: 20, color: "#10b981" },
+  ];
+
+  const repairStatus = [
+    { name: "Hoàn thành", value: 45, color: "#10b981" },
+    { name: "Đang sửa", value: 35, color: "#3b82f6" },
+    { name: "Chờ xử lý", value: 20, color: "#f59e0b" },
+  ];
+
+  const topCustomers = [
+    { name: "Nguyễn Văn A", phone: "0901 234 567", spending: 25_000_000 },
+    { name: "Lê Văn C", phone: "0923 456 789", spending: 32_000_000 },
+    { name: "Hoàng Văn E", phone: "0945 678 901", spending: 18_000_000 },
+    { name: "Phạm Thị D", phone: "0934 567 890", spending: 12_000_000 },
+    { name: "Trần Thị B", phone: "0912 345 678", spending: 8_500_000 },
   ];
 
   const topServices = [
@@ -73,17 +101,21 @@ const Dashboard = () => {
     { name: "Thay lốp xe", count: 134, revenue: 26800000 },
   ];
 
+  // =================== GIAO DIỆN ===================
   return (
-    <div className="space-y-6">
-      {/* --- Stats Cards --- */}
+    <div className="space-y-8">
+      <h2 className="text-2xl font-bold text-gray-800">Tổng quan gara</h2>
+
+      {/* --- THẺ THỐNG KÊ NHANH --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statsCards.map((stat, index) => (
           <StatsCard key={index} {...stat} />
         ))}
       </div>
 
-      {/* --- Charts --- */}
+      {/* --- DOANH THU & PHÂN LOẠI DỊCH VỤ --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Line chart doanh thu */}
         <div className="bg-white rounded-xl shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">
             Doanh thu 6 tháng gần đây
@@ -104,6 +136,7 @@ const Dashboard = () => {
           </ResponsiveContainer>
         </div>
 
+        {/* Pie chart loại dịch vụ */}
         <div className="bg-white rounded-xl shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">
             Phân loại dịch vụ
@@ -132,10 +165,82 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* --- Top Services Table --- */}
+      {/* --- BIỂU ĐỒ CỘT THEO THỢ --- */}
       <div className="bg-white rounded-xl shadow-md p-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">
-          Dịch vụ hàng đầu
+          Năng suất theo thợ
+        </h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={mechanicStats}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="soPhieu" fill="#3b82f6" name="Số phiếu" />
+            <Bar dataKey="doanhThu" fill="#10b981" name="Doanh thu (triệu)" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* --- TOP KHÁCH HÀNG VIP & TRẠNG THÁI PHIẾU --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Khách hàng VIP */}
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">
+            Top khách hàng VIP
+          </h3>
+          <div className="space-y-3">
+            {topCustomers.slice(0, 5).map((c, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+              >
+                <div>
+                  <p className="font-semibold text-gray-800">{c.name}</p>
+                  <p className="text-sm text-gray-500">{c.phone}</p>
+                </div>
+                <p className="font-bold text-blue-600">
+                  {formatCurrency(c.spending)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Trạng thái phiếu */}
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">
+            Trạng thái phiếu sửa chữa
+          </h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <PieChart>
+              <Pie
+                data={repairStatus}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) =>
+                  `${name} ${(percent * 100).toFixed(0)}%`
+                }
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {repairStatus.map((entry, i) => (
+                  <Cell key={`cell-${i}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* --- DỊCH VỤ HÀNG ĐẦU --- */}
+      <div className="bg-white rounded-xl shadow-md p-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">
+          Dịch vụ được sử dụng nhiều nhất
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -145,7 +250,7 @@ const Dashboard = () => {
                   Tên dịch vụ
                 </th>
                 <th className="text-right py-3 px-4 text-gray-600 font-semibold">
-                  Số lượng
+                  Số lượt
                 </th>
                 <th className="text-right py-3 px-4 text-gray-600 font-semibold">
                   Doanh thu
@@ -175,5 +280,4 @@ const Dashboard = () => {
   );
 };
 
-// ✅ export default để App.jsx nhận đúng
 export default Dashboard;

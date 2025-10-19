@@ -1,81 +1,89 @@
 // src/pages/CustomerManagement.jsx
-import React, { useState, useEffect } from "react";
-import Table from "../components/common/Table";
-import SearchBar from "../components/common/SearchBar";
-import { customerService } from "../services/customerService";
-
-const mockCustomers = [
-  {
-    id: 1,
-    tenKH: "Nguyễn Văn A",
-    soDienThoai: "0901234567",
-    email: "nguyenvana@email.com",
-    diaChi: "Hà Nội",
-    loaiKhach: "VIP",
-  },
-  {
-    id: 2,
-    tenKH: "Trần Thị B",
-    soDienThoai: "0912345678",
-    email: "tranthib@email.com",
-    diaChi: "TP.HCM",
-    loaiKhach: "Thường",
-  },
-];
-
-const getStatusColor = (value) => {
-  return value === "VIP"
-    ? "bg-yellow-100 text-yellow-800"
-    : "bg-gray-100 text-gray-800";
-};
+import React, { useState } from "react";
+import Table from "../components/common/Table"; // ✅ dùng component chung
+import { Plus } from "lucide-react";
 
 const CustomerManagement = () => {
-  const [customers, setCustomers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  const fetchCustomers = async () => {
-    try {
-      // const data = await customerService.getAll();
-      const data = mockCustomers;
-      setCustomers(data);
-      setError("");
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm("Bạn chắc chắn muốn xóa?")) {
-      try {
-        // await customerService.delete(id);
-        setCustomers(customers.filter((c) => c.id !== id));
-      } catch (err) {
-        setError(err.message);
-      }
-    }
-  };
-
-  const columns = [
-    { key: "tenKH", label: "Tên khách hàng" },
-    { key: "soDienThoai", label: "Số điện thoại" },
-    { key: "email", label: "Email" },
-    { key: "diaChi", label: "Địa chỉ" },
+  const [customers] = useState([
     {
-      key: "loaiKhach",
-      label: "Loại khách",
+      id: "KH001",
+      name: "Anh Nam",
+      phone: "0987654321",
+      email: "anhnam@email.com",
+      address: "123 Đường Láng, Đống Đa, Hà Nội",
+      status: "Hoạt động",
+    },
+    {
+      id: "KH002",
+      name: "Chị Lan",
+      phone: "0912345678",
+      email: "chilan@email.com",
+      address: "45 Hai Bà Trưng, Hoàn Kiếm, Hà Nội",
+      status: "Hoạt động",
+    },
+    {
+      id: "KH003",
+      name: "Anh Tuấn",
+      phone: "0934567890",
+      email: "anhtuan@email.com",
+      address: "78 Cầu Giấy, Cầu Giấy, Hà Nội",
+      status: "Dừng hoạt động",
+    },
+  ]);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("Tất cả trạng thái");
+
+  // --- Lọc khách hàng ---
+  const filteredCustomers = customers.filter((c) => {
+    const matchSearch = Object.values(c)
+      .join(" ")
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const matchStatus =
+      statusFilter === "Tất cả trạng thái" || c.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
+  // --- Cấu hình cột cho bảng ---
+  const columns = [
+    {
+      key: "name",
+      label: "Khách hàng",
+      render: (value, row) => (
+        <div className="flex flex-col">
+          <span className="font-semibold text-gray-800">{value}</span>
+          <span className="text-xs text-gray-500">{row.id}</span>
+        </div>
+      ),
+    },
+    {
+      key: "phone",
+      label: "Liên hệ",
+      render: (value, row) => (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <span>📞</span>
+            <span>{row.phone}</span>
+          </div>
+          <div className="flex items-center gap-2 text-gray-500">
+            <span>✉️</span>
+            <span>{row.email}</span>
+          </div>
+        </div>
+      ),
+    },
+    { key: "address", label: "Địa chỉ" },
+    {
+      key: "status",
+      label: "Trạng thái",
       render: (value) => (
         <span
-          className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(
-            value
-          )}`}
+          className={`px-3 py-1 text-xs font-semibold rounded-full ${
+            value === "Hoạt động"
+              ? "bg-green-100 text-green-800"
+              : "bg-gray-200 text-gray-700"
+          }`}
         >
           {value}
         </span>
@@ -83,33 +91,51 @@ const CustomerManagement = () => {
     },
   ];
 
+  // --- Hành động ---
+  const handleView = (row) => alert(`📋 Xem chi tiết: ${row.name}`);
+  const handleEdit = (row) => alert(`📝 Sửa khách hàng: ${row.name}`);
+
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">
-          Quản lý khách hàng
-        </h2>
-        <SearchBar
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          onAddNew={() => console.log("Add new customer")}
-          placeholder="Tìm kiếm tên, SĐT, email..."
-        />
+      {/* --- Header --- */}
+      <div className="flex items-center justify-between bg-white p-6 rounded-xl shadow">
+        <h2 className="text-xl font-bold text-gray-800">Quản lý Khách hàng</h2>
+        <button className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold">
+          <Plus size={18} /> Thêm khách hàng
+        </button>
       </div>
 
-      {error && (
-        <div className="bg-red-100 text-red-600 p-4 rounded-lg">{error}</div>
-      )}
+      {/* --- Bộ lọc và tìm kiếm --- */}
+      <div className="bg-white p-6 rounded-xl shadow flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
+        <div className="flex-1 flex items-center gap-4">
+          <input
+            type="text"
+            placeholder="Tìm theo tên, SĐT, email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+          >
+            <option>Tất cả trạng thái</option>
+            <option>Hoạt động</option>
+            <option>Dừng hoạt động</option>
+          </select>
+        </div>
+        <button className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-semibold">
+          Tìm kiếm
+        </button>
+      </div>
 
+      {/* --- Bảng khách hàng tái sử dụng Table.jsx --- */}
       <Table
         columns={columns}
-        data={customers.filter((c) =>
-          Object.values(c).some((val) =>
-            val?.toString().toLowerCase().includes(searchTerm.toLowerCase())
-          )
-        )}
-        loading={loading}
-        onDelete={handleDelete}
+        data={filteredCustomers}
+        onView={handleView}
+        onEdit={handleEdit}
       />
     </div>
   );
