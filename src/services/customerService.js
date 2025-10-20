@@ -1,17 +1,35 @@
-import { apiCall } from './api';
+import { apiCall } from "./api";
 
 export const customerService = {
-  getAll: () => apiCall('/customers'),
-  getById: (id) => apiCall(`/customers/${id}`),
-  create: (data) => apiCall('/customers', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-  update: (id, data) => apiCall(`/customers/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  }),
-  delete: (id) => apiCall(`/customers/${id}`, {
-    method: 'DELETE',
-  }),
+  // Lấy tất cả khách hàng
+  getAll: async (page = 0, size = 10, sortBy = "maKhachHang", sortDirection = "ASC") => {
+    const response = await apiCall(
+      `/api/khachhang?page=${page}&size=${size}&sortBy=${sortBy}&sortDirection=${sortDirection}`,
+      { method: "GET" }
+    );
+    return response; // 🔥 Giữ nguyên vì có thể có "content"
+  },
+
+  // Thêm khách hàng mới
+  async create(newData) {
+    return await apiCall(`/api/khachhang/them`, {
+      method: "POST",
+      body: JSON.stringify(newData),
+    });
+  },
+
+  // Xóa khách hàng
+  async remove(maKhachHang) {
+    return await apiCall(`/api/khachhang/${maKhachHang}`, {
+      method: "DELETE",
+    });
+  },
+
+  // Cập nhật khách hàng
+  async update(maKhachHang, updatedData) {
+    return await apiCall(`/api/khachhang/${maKhachHang}`, {
+      method: "PUT",
+      body: JSON.stringify(updatedData),
+    });
+  },
 };

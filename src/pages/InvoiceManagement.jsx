@@ -1,38 +1,11 @@
 import React, { useState, useEffect } from "react";
 import Table from "../components/common/Table";
 import SearchBar from "../components/common/SearchBar";
+import Box from "../components/common/Box";
+import { invoiceService } from "../services/invoiceService";
 import { formatDate, formatCurrency } from "../utils/helpers";
 
-const mockInvoices = [
-  {
-    id: 1,
-    maHD: "HD001",
-    maPhieu: "PC001",
-    ngayLap: "2024-10-10",
-    kieuThanhToan: "Tiền mặt",
-    trangThai: "Đã thanh toán",
-    tongTien: 1500000,
-  },
-  {
-    id: 2,
-    maHD: "HD002",
-    maPhieu: "PC002",
-    ngayLap: "2024-10-11",
-    kieuThanhToan: "Chuyển khoản",
-    trangThai: "Chưa thanh toán",
-    tongTien: 2300000,
-  },
-  {
-    id: 3,
-    maHD: "HD003",
-    maPhieu: "PC003",
-    ngayLap: "2024-10-12",
-    kieuThanhToan: "Thẻ ngân hàng",
-    trangThai: "Đã thanh toán",
-    tongTien: 4500000,
-  },
-];
-
+// 🎨 Màu trạng thái hiển thị
 const getStatusColor = (status) => {
   switch (status) {
     case "Đã thanh toán":
@@ -45,62 +18,103 @@ const getStatusColor = (status) => {
 };
 
 const InvoiceManagement = () => {
+  // ===================== STATE =====================
   const [invoices, setInvoices] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingData, setEditingData] = useState(null);
+  const [modalMode, setModalMode] = useState("view");
 
-  useEffect(() => {
-    loadInvoices();
-  }, []);
-
-  const loadInvoices = async () => {
+  // ===================== FETCH DATA =====================
+  const fetchInvoices = async () => {
     try {
-      // const data = await invoiceService.getAll();
-      const data = mockInvoices;
-      setInvoices(data);
+      setLoading(true);
+      const list = await invoiceService.getAll(); // ✅ service trả về content đã chuẩn hóa
+
+      const mapped = list.map((item, index) => ({
+        id: item.maHoaDon || index,
+        maHoaDon: item.maHoaDon,
+        maPhieu: item.maPhieu,
+        ngayLap: item.ngayLapHoaDon,
+        thoiGianThanhCong: item.thoiGianThanhCong,
+        kieuThanhToan: item.kieuThanhToan || "Chưa xác định",
+        trangThai: item.trangThai || "Chưa thanh toán",
+        tongTien: item.tongTien || 0,
+        chiTietList: item.chiTietList || [], // ✅ thêm trường chi tiết để xem trong modal
+      }));
+
+      setInvoices(mapped);
+      setError("");
     } catch (err) {
-      setError("Không thể tải dữ liệu hóa đơn.");
+      console.error("❌ Lỗi tải danh sách hóa đơn:", err);
+      setError("Không thể tải danh sách hóa đơn từ server.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm("Bạn có chắc muốn xóa hóa đơn này không?")) {
-      setInvoices((prev) => prev.filter((i) => i.id !== id));
+  useEffect(() => {
+    fetchInvoices();
+  }, []);
+
+  // ===================== HANDLERS =====================
+  const handleView = (row) => {
+    setModalMode("view");
+    setEditingData(row);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (row) => {
+    setModalMode("edit");
+    setEditingData(row);
+    setIsModalOpen(true);
+  };
+
+  const handleSave = async (formData) => {
+    try {
+      await invoiceService.updateStatus(editingData.maHoaDon, formData.trangThai);
+      await invoiceService.updatePaymentType(
+        editingData.maHoaDon,
+        formData.kieuThanhToan
+      );
+      alert("✅ Cập nhật hóa đơn thành công!");
+      setIsModalOpen(false);
+      fetchInvoices();
+    } catch (err) {
+      console.error("❌ Lỗi khi cập nhật hóa đơn:", err);
+      setError("Cập nhật thất bại. Vui lòng thử lại!");
     }
   };
 
-  const handleView = (row) => {
-    setSelectedInvoice(row); // ✅ mở modal chi tiết
-  };
-
-  const handleEdit = (row) => alert(`✏️ Sửa hóa đơn: ${row.maHD}`);
-  const closeModal = () => setSelectedInvoice(null);
-
+  // ===================== FILTER =====================
   const filteredInvoices = invoices.filter((i) =>
     Object.values(i).some((val) =>
       val?.toString().toLowerCase().includes(searchTerm.toLowerCase())
     )
   );
 
+  // ===================== TABLE CONFIG =====================
   const columns = [
-    { key: "maHD", label: "Mã HĐ" },
-    { key: "maPhieu", label: "Mã phiếu" },
+    { key: "maHoaDon", label: "Mã HĐ" },
+    { key: "maPhieu", label: "Mã Phiếu" },
     {
       key: "ngayLap",
-      label: "Ngày lập",
-      render: (value) => formatDate(value),
+      label: "Ngày Lập",
+      render: (value) => (value ? formatDate(value) : "—"),
     },
-    { key: "kieuThanhToan", label: "Hình thức TT" },
+    {
+      key: "kieuThanhToan",
+      label: "Hình Thức TT",
+      render: (value) => value || "—",
+    },
     {
       key: "trangThai",
-      label: "Trạng thái",
+      label: "Trạng Thái",
       render: (value) => (
         <span
-          className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(
+          className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(
             value
           )}`}
         >
@@ -110,7 +124,7 @@ const InvoiceManagement = () => {
     },
     {
       key: "tongTien",
-      label: "Tổng tiền",
+      label: "Tổng Tiền",
       render: (value) => (
         <span className="font-semibold text-gray-800">
           {formatCurrency(value)}
@@ -119,17 +133,36 @@ const InvoiceManagement = () => {
     },
   ];
 
+  // ===================== FORM CONFIG =====================
+  const invoiceFields = [
+    {
+      name: "kieuThanhToan",
+      label: "Hình thức thanh toán",
+      type: "select",
+      options: ["Tiền mặt", "Thẻ", "Chuyển khoản"],
+    },
+    {
+      name: "trangThai",
+      label: "Trạng thái",
+      type: "select",
+      options: ["Đã thanh toán", "Chưa thanh toán"],
+    },
+  ];
+
+  const getModalTitle = () => {
+    if (modalMode === "edit") return "Cập nhật Hóa đơn";
+    return "Chi tiết Hóa đơn";
+  };
+
+  // ===================== UI =====================
   return (
     <div className="space-y-6">
-      {/* --- Header --- */}
+      {/* Header */}
       <div className="flex items-center justify-between bg-white p-6 rounded-xl shadow">
         <h2 className="text-xl font-bold text-gray-800">Quản lý Hóa đơn</h2>
-        <button className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold">
-          + Thêm hóa đơn mới
-        </button>
       </div>
 
-      {/* --- Thanh tìm kiếm --- */}
+      {/* Thanh tìm kiếm */}
       <div className="bg-white rounded-xl shadow-md p-6">
         <SearchBar
           searchTerm={searchTerm}
@@ -138,81 +171,47 @@ const InvoiceManagement = () => {
         />
       </div>
 
-      {/* --- Thông báo lỗi --- */}
+      {/* Lỗi */}
       {error && (
         <div className="bg-red-100 text-red-600 p-4 rounded-lg text-sm">
           {error}
         </div>
       )}
 
-      {/* --- Bảng hóa đơn --- */}
+      {/* Bảng dữ liệu */}
       <Table
         columns={columns}
         data={filteredInvoices}
         loading={loading}
         onView={handleView}
         onEdit={handleEdit}
-        onDelete={handleDelete}
       />
 
-      {/* --- Modal xem chi tiết --- */}
-      {selectedInvoice && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-[420px] relative animate-fade-in">
-            <button
-              onClick={closeModal}
-              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-            >
-              ✖
-            </button>
-
-            <h3 className="text-xl font-bold text-orange-500 mb-4">
-              Chi tiết hóa đơn
-            </h3>
-
-            <div className="space-y-2 text-sm text-gray-700">
-              <p>
-                <strong>Mã HĐ:</strong> {selectedInvoice.maHD}
-              </p>
-              <p>
-                <strong>Mã phiếu:</strong> {selectedInvoice.maPhieu}
-              </p>
-              <p>
-                <strong>Ngày lập:</strong>{" "}
-                {formatDate(selectedInvoice.ngayLap)}
-              </p>
-              <p>
-                <strong>Hình thức thanh toán:</strong>{" "}
-                {selectedInvoice.kieuThanhToan}
-              </p>
-              <p>
-                <strong>Trạng thái:</strong>{" "}
-                <span
-                  className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(
-                    selectedInvoice.trangThai
-                  )}`}
-                >
-                  {selectedInvoice.trangThai}
-                </span>
-              </p>
-              <p>
-                <strong>Tổng tiền:</strong>{" "}
-                <span className="font-semibold text-gray-900">
-                  {formatCurrency(selectedInvoice.tongTien)}
-                </span>
-              </p>
+      {/* Modal (Box) */}
+      {isModalOpen && (
+        <Box
+          mode={modalMode}
+          title={getModalTitle()}
+          fields={invoiceFields}
+          initialData={editingData}
+          onClose={() => setIsModalOpen(false)}
+          onSubmit={handleSave}
+        >
+          {/* ✅ Hiển thị danh sách chi tiết dịch vụ trong modal (nếu có) */}
+          {editingData?.chiTietList?.length > 0 && (
+            <div className="mt-4 border-t pt-4">
+              <h3 className="font-semibold mb-2 text-gray-700">Chi tiết dịch vụ:</h3>
+              <ul className="space-y-1 text-sm text-gray-600">
+                {editingData.chiTietList.map((ct, idx) => (
+                  <li key={idx}>
+                    - {ct.tenDichVu} (x{ct.soLuong}) —{" "}
+                    {formatCurrency(ct.thanhTien)}
+                  </li>
+                ))}
+              </ul>
             </div>
-
-            <div className="mt-5 text-right">
-              <button
-                onClick={closeModal}
-                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold"
-              >
-                Đóng
-              </button>
-            </div>
-          </div>
-        </div>
+          )}
+        </Box>
       )}
     </div>
   );

@@ -1,156 +1,220 @@
 import React, { useState, useEffect } from "react";
-import ProductCard from "../components/common/ProductCard";
-import { Eye, Edit, Trash2, Plus } from "lucide-react";
+import Table from "../components/common/Table";
+import SearchBar from "../components/common/SearchBar";
+import Box from "../components/common/Box";
+import { serviceService } from "../services/serviceService";
 import { formatCurrency } from "../utils/helpers";
 
-// ✅ Mock dữ liệu dịch vụ
-const mockServices = [
-  {
-    id: 1,
-    name: "Thay dầu động cơ",
-    category: "Bảo dưỡng",
-    price: 350000,
-    time: "30 phút",
-    status: "Đang hoạt động",
-    image: "https://placehold.co/400x250?text=Thay+dầu+động+cơ",
-  },
-  {
-    id: 2,
-    name: "Sửa hệ thống phanh",
-    category: "Sửa chữa",
-    price: 1200000,
-    time: "1 giờ 15 phút",
-    status: "Đang hoạt động",
-    image: "https://placehold.co/400x250?text=Sửa+phanh",
-  },
-  {
-    id: 3,
-    name: "Thay lốp xe",
-    category: "Thay thế",
-    price: 800000,
-    time: "45 phút",
-    status: "Tạm dừng",
-    image: "https://placehold.co/400x250?text=Thay+lốp+xe",
-  },
-];
-
-
 const ServiceManagement = () => {
+  // ===================== STATE =====================
   const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("Tất cả trạng thái");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingService, setEditingService] = useState(null);
+  const [modalMode, setModalMode] = useState("add");
 
-  useEffect(() => {
-    setServices(mockServices);
-  }, []);
+  // ===================== FETCH DATA =====================
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const response = await serviceService.getAll();
+      const list = response.content || [];
 
-  const handleEdit = (service) =>
-    alert(`✏️ Chỉnh sửa dịch vụ: ${service.name}`);
-  const handleView = (service) =>
-    alert(
-      `📋 Thông tin dịch vụ:\n- Tên: ${service.name}\n- Thời gian: ${service.time}\n- Giá: ${formatCurrency(
-        service.price
-      )}`
-    );
-  const handleDelete = (id) => {
-    if (window.confirm("Bạn có chắc muốn xóa dịch vụ này không?")) {
-      setServices((prev) => prev.filter((s) => s.id !== id));
+      const mapped = list.map((d) => ({
+        id: d.maDichVu,
+        tenDichVu: d.tenDichVu || "Chưa có tên",
+        moTa: d.moTa || "Không có mô tả",
+        anhDichVu: d.anhDichVu,
+        soLuongTon: d.soLuongTon ?? 0,
+        soLuongBan: d.soLuongBan ?? 0,
+        gia: d.gia ?? 0,
+        thoiGianUocTinh: d.thoiGianUocTinh ?? 0,
+        trangThai: d.trangThai || "Đang hoạt động",
+        ngayTao: d.ngayTao ? new Date(d.ngayTao).toLocaleDateString("vi-VN") : "",
+        loai: d.tenLoaiDichVu || "Khác",
+      }));
+
+      setServices(mapped);
+      setError("");
+    } catch (err) {
+      console.error("❌ Lỗi tải danh sách dịch vụ:", err);
+      setError("Không thể tải danh sách dịch vụ từ server.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Lọc dịch vụ theo tìm kiếm và trạng thái
-  const filtered = services.filter((s) => {
-    const matchSearch = Object.values(s)
-      .join(" ")
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const matchStatus =
-      statusFilter === "Tất cả trạng thái" || s.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  useEffect(() => {
+    fetchData();
+  }, []);
 
+  // ===================== HANDLERS =====================
+  const handleView = (row) => {
+    setModalMode("view");
+    setEditingService(row);
+    setIsModalOpen(true);
+  };
+
+  const handleAdd = () => {
+    setModalMode("add");
+    setEditingService(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (row) => {
+    setModalMode("edit");
+    setEditingService(row);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Bạn có chắc muốn xóa dịch vụ này không?")) {
+      try {
+        await serviceService.remove(id);
+        alert("🗑️ Xóa dịch vụ thành công!");
+        fetchData();
+      } catch (err) {
+        console.error("❌ Lỗi khi xóa dịch vụ:", err);
+        setError("Không thể xóa dịch vụ. Vui lòng thử lại.");
+      }
+    }
+  };
+
+  const handleSave = async (formData) => {
+    try {
+      if (modalMode === "edit") {
+        await serviceService.update(editingService.id, formData);
+        alert("✏️ Cập nhật dịch vụ thành công!");
+      } else {
+        await serviceService.create(formData);
+        alert("✅ Thêm dịch vụ mới thành công!");
+      }
+      setIsModalOpen(false);
+      fetchData();
+    } catch (err) {
+      console.error("❌ Lỗi khi lưu dịch vụ:", err);
+      setError("Lưu dịch vụ thất bại. Kiểm tra dữ liệu đầu vào!");
+    }
+  };
+
+  // ===================== FILTERING =====================
+  const filtered = services.filter((s) =>
+    (s.tenDichVu || "").toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // ===================== TABLE CONFIG =====================
+  const columns = [
+    { key: "tenDichVu", label: "Tên dịch vụ" },
+    {
+      key: "anhDichVu",
+      label: "Ảnh",
+      render: (value) =>
+        value ? (
+          <img
+            src={value}
+            alt="Ảnh dịch vụ"
+            className="w-14 h-14 object-cover rounded-lg border"
+          />
+        ) : (
+          <span className="text-gray-400 italic">Không có ảnh</span>
+        ),
+    },
+    { key: "loai", label: "Loại dịch vụ" },
+    { key: "soLuongTon", label: "Tồn kho" },
+    { key: "soLuongBan", label: "Đã bán" },
+    {
+      key: "gia",
+      label: "Giá (VNĐ)",
+      render: (value) => formatCurrency(value),
+    },
+    { key: "thoiGianUocTinh", label: "Ước tính (phút)" },
+    {
+      key: "trangThai",
+      label: "Trạng thái",
+      render: (value) => {
+        const color =
+          value === "Ngừng kinh doanh"
+            ? "bg-red-100 text-red-700"
+            : "bg-green-100 text-green-700";
+        return (
+          <span
+            className={`px-2 py-1 text-xs font-semibold rounded ${color}`}
+          >
+            {value}
+          </span>
+        );
+      },
+    },
+    { key: "ngayTao", label: "Ngày tạo" },
+  ];
+
+  // ===================== FORM FIELDS =====================
+  const serviceFields = [
+    { name: "tenDichVu", label: "Tên dịch vụ", type: "text" },
+    { name: "moTa", label: "Mô tả", type: "textarea" },
+    { name: "gia", label: "Giá (VNĐ)", type: "number" },
+    { name: "soLuongTon", label: "Số lượng tồn", type: "number" },
+    { name: "soLuongBan", label: "Số lượng bán", type: "number" },
+    { name: "thoiGianUocTinh", label: "Thời gian ước tính (phút)", type: "number" },
+    { name: "loai", label: "Loại dịch vụ", type: "text" },
+    { name: "anhDichVu", label: "URL Ảnh", type: "text" },
+    { name: "trangThai", label: "Trạng thái", type: "text" },
+  ];
+
+  const getModalTitle = () => {
+    if (modalMode === "view") return "Chi tiết Dịch vụ";
+    if (modalMode === "edit") return "Chỉnh sửa Dịch vụ";
+    return "Thêm Dịch vụ mới";
+  };
+
+  // ===================== UI =====================
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between bg-white p-6 rounded-xl shadow">
         <h2 className="text-xl font-bold text-gray-800">Quản lý Dịch vụ</h2>
-        <button className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold">
-          <Plus size={18} /> Thêm Dịch vụ mới
+        <button
+          onClick={handleAdd}
+          className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold"
+        >
+          + Thêm Dịch vụ
         </button>
       </div>
 
-      {/* Thanh tìm kiếm + lọc */}
-      <div className="bg-white p-6 rounded-xl shadow flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
-        <div className="flex-1 flex items-center gap-4">
-          <input
-            type="text"
-            placeholder="🔍 Tìm theo tên, loại dịch vụ..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent"
-          />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent"
-          >
-            <option>Tất cả trạng thái</option>
-            <option>Đang hoạt động</option>
-            <option>Tạm dừng</option>
-          </select>
-        </div>
-
-        <button className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-semibold">
-          Tìm kiếm
-        </button>
+      <div className="bg-white rounded-xl shadow-md p-6">
+        <SearchBar
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          placeholder="Tìm theo tên dịch vụ..."
+        />
       </div>
 
-      {/* Danh sách thẻ dịch vụ */}
-      <div className="bg-gray-50 rounded-xl p-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-          {filtered.map((s) => (
-            <ProductCard
-              key={s.id}
-              item={{
-                ...s,
-                description: `${s.category} • ${s.time}`,
-                details: `${formatCurrency(s.price)} • ${s.status}`,
-              }}
-              customActions={
-                <>
-                  <button
-                    onClick={() => handleView(s)}
-                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                    title="Xem chi tiết"
-                  >
-                    <Eye size={18} />
-                  </button>
-                  <button
-                    onClick={() => handleEdit(s)}
-                    className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
-                    title="Sửa"
-                  >
-                    <Edit size={18} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(s.id)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                    title="Xóa"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </>
-              }
-            />
-          ))}
+      {error && (
+        <div className="bg-red-100 text-red-600 p-4 rounded-lg text-sm">
+          {error}
         </div>
+      )}
 
-        {filtered.length === 0 && (
-          <p className="text-center text-gray-500 italic mt-6">
-            Không tìm thấy dịch vụ nào phù hợp.
-          </p>
-        )}
-      </div>
+      <Table
+        columns={columns}
+        data={filtered}
+        loading={loading}
+        onView={handleView}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
+
+      {isModalOpen && (
+        <Box
+          mode={modalMode}
+          title={getModalTitle()}
+          fields={serviceFields}
+          initialData={editingService}
+          onClose={() => setIsModalOpen(false)}
+          onSubmit={handleSave}
+        />
+      )}
     </div>
   );
 };

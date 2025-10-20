@@ -1,193 +1,160 @@
 import React, { useState, useEffect } from "react";
 import Table from "../components/common/Table";
 import SearchBar from "../components/common/SearchBar";
-import { formatCurrency } from "../utils/helpers";
-
-// ✅ Dữ liệu giả lập (demo)
-const mockMechanics = [
-  {
-    id: 1,
-    maTho: "T001",
-    hoTen: "Nguyễn Văn A",
-    sdt: "0901 234 567",
-    chuyenMon: "Sửa máy - điện",
-    trangThai: "Đang làm việc",
-    luong: 12000000,
-  },
-  {
-    id: 2,
-    maTho: "T002",
-    hoTen: "Trần Văn B",
-    sdt: "0912 345 678",
-    chuyenMon: "Bảo dưỡng - thay dầu",
-    trangThai: "Tạm nghỉ",
-    luong: 9500000,
-  },
-  {
-    id: 3,
-    maTho: "T003",
-    hoTen: "Phạm Văn C",
-    sdt: "0934 567 890",
-    chuyenMon: "Sơn - gò hàn",
-    trangThai: "Đang làm việc",
-    luong: 11000000,
-  },
-];
-
-// ✅ Hàm đổi màu theo trạng thái
-const getStatusColor = (status) => {
-  switch (status) {
-    case "Đang làm việc":
-      return "bg-green-100 text-green-700";
-    case "Tạm nghỉ":
-      return "bg-yellow-100 text-yellow-700";
-    default:
-      return "bg-gray-100 text-gray-700";
-  }
-};
+import Box from "../components/common/Box";
+import { mechanicService } from "../services/mechanicService";
 
 const MechanicManagement = () => {
+  // ===================== STATE =====================
   const [mechanics, setMechanics] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-  const [selectedMechanic, setSelectedMechanic] = useState(null);
+  const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingData, setEditingData] = useState(null);
+  const [modalMode, setModalMode] = useState('add'); // 'add', 'edit', 'view'
 
-  useEffect(() => {
-    loadMechanics();
-  }, []);
-
-  const loadMechanics = async () => {
+  // ===================== DATA FETCHING =====================
+  const fetchData = async () => {
     try {
-      // const data = await mechanicService.getAll();
-      const data = mockMechanics;
-      setMechanics(data);
-    } catch (error) {
-      console.error("Lỗi khi tải dữ liệu thợ:", error);
+      setLoading(true);
+      const response = await mechanicService.getAll();
+      // Chuẩn hóa dữ liệu trả về từ API, đảm bảo mỗi item đều có 'id'
+      const list = (response.content || response).map(item => ({
+        ...item,
+        id: item.maTho || item.id, // Tạo một key 'id' chung để dễ xử lý
+      }));
+      setMechanics(list);
+    } catch (err) {
+      console.error("❌ Lỗi tải danh sách thợ:", err);
+      setError("Không thể tải danh sách thợ từ server.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = (id) => {
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // ===================== HANDLERS =====================
+  const handleView = (row) => {
+    setModalMode('view');
+    setEditingData(row);
+    setIsModalOpen(true);
+  };
+
+  const handleAdd = () => {
+    setModalMode('add');
+    setEditingData(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (row) => {
+    setModalMode('edit');
+    setEditingData(row);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (!id) {
+      alert("Lỗi: Không tìm thấy ID của thợ.");
+      return;
+    }
     if (window.confirm("Bạn có chắc muốn xóa thợ này không?")) {
-      setMechanics((prev) => prev.filter((m) => m.id !== id));
+      try {
+        await mechanicService.remove(id);
+        alert("Xóa thành công!");
+        fetchData(); // Tải lại dữ liệu
+      } catch (err) {
+        console.error("❌ Lỗi khi xóa thợ:", err);
+        setError("Xóa thợ thất bại.");
+      }
     }
   };
 
-  const handleView = (row) => setSelectedMechanic(row);
-  const handleEdit = (row) => alert(`✏️ Sửa thông tin thợ: ${row.hoTen}`);
-  const closeModal = () => setSelectedMechanic(null);
+  const handleSave = async (formData) => {
+    try {
+      if (modalMode === 'edit') {
+        await mechanicService.update(editingData.id, formData);
+        alert("Cập nhật thành công!");
+      } else {
+        await mechanicService.create(formData);
+        alert("Thêm mới thành công!");
+      }
+      setIsModalOpen(false);
+      fetchData(); // Tải lại dữ liệu
+    } catch (err) {
+      console.error("❌ Lỗi khi lưu thông tin thợ:", err);
+      setError("Lưu thông tin thất bại.");
+    }
+  };
 
-  const filteredMechanics = mechanics.filter((m) =>
-    Object.values(m).some((val) =>
-      val?.toString().toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  );
-
-  const columns = [
-    { key: "maTho", label: "Mã thợ" },
-    { key: "hoTen", label: "Họ tên" },
-    { key: "sdt", label: "Số điện thoại" },
-    { key: "chuyenMon", label: "Chuyên môn" },
-    {
-      key: "trangThai",
-      label: "Trạng thái",
-      render: (value) => (
-        <span
-          className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(value)}`}
-        >
-          {value}
-        </span>
-      ),
-    },
-    {
-      key: "luong",
-      label: "Lương (VNĐ)",
-      render: (value) => (
-        <span className="font-semibold text-gray-800">
-          {formatCurrency(value)}
-        </span>
-      ),
-    },
+  // ===================== CONFIGS & FILTERING =====================
+  
+  // Định nghĩa các trường cho form trong Box.jsx dựa trên API
+  const mechanicFields = [
+    { name: 'tenTho', label: 'Tên thợ', type: 'text' },
+    { name: 'chuyenMon', label: 'Chuyên môn', type: 'text' },
+    { name: 'soDienThoai', label: 'Số điện thoại', type: 'tel' },
+    { name: 'email', label: 'Email', type: 'email' },
+    { name: 'kinhNghiem', label: 'Số năm kinh nghiệm', type: 'number', defaultValue: 0 },
   ];
 
+  // Định nghĩa các cột cho Table
+  const columns = [
+    { key: "tenTho", label: "Tên Thợ" },
+    { key: "chuyenMon", label: "Chuyên Môn" },
+    { key: "soDienThoai", label: "Số Điện Thoại" },
+    { key: "email", label: "Email" },
+    { key: "kinhNghiem", label: "Kinh Nghiệm (năm)" },
+  ];
+
+  const filteredData = mechanics.filter(m =>
+    m.tenTho && m.tenTho.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getModalTitle = () => {
+    if (modalMode === 'view') return "Chi tiết Thợ";
+    if (modalMode === 'edit') return "Chỉnh sửa Thông tin Thợ";
+    return "Thêm Thợ mới";
+  };
+
+  // ===================== UI =====================
   return (
     <div className="space-y-6">
-      {/* --- Header --- */}
       <div className="flex items-center justify-between bg-white p-6 rounded-xl shadow">
-        <h2 className="text-xl font-bold text-gray-800">Quản lý Thợ sửa xe</h2>
-        <button className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold">
-          + Thêm thợ mới
+        <h2 className="text-xl font-bold text-gray-800">Quản lý Thợ</h2>
+        <button onClick={handleAdd} className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold">
+          + Thêm thợ
         </button>
       </div>
 
-      {/* --- Thanh tìm kiếm --- */}
       <div className="bg-white rounded-xl shadow-md p-6">
-        <SearchBar
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          placeholder="Tìm theo tên, mã thợ, chuyên môn..."
-        />
+        <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} placeholder="Tìm theo tên thợ..." />
       </div>
 
-      {/* --- Bảng dữ liệu --- */}
+      {error && <div className="bg-red-100 text-red-600 p-4 rounded-lg text-sm">{error}</div>}
+
       <Table
         columns={columns}
-        data={filteredMechanics}
+        data={filteredData}
         loading={loading}
         onView={handleView}
         onEdit={handleEdit}
-        onDelete={handleDelete}
+        // Sử dụng ID đã được chuẩn hóa
+        onDelete={(row) => handleDelete(row.id)}
       />
 
-      {/* --- Modal xem chi tiết --- */}
-      {selectedMechanic && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-[420px] relative animate-fade-in">
-            <button
-              onClick={closeModal}
-              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-            >
-              ✖
-            </button>
-
-            <h3 className="text-xl font-bold text-orange-500 mb-4">
-              Thông tin chi tiết thợ
-            </h3>
-
-            <div className="space-y-2 text-sm text-gray-700">
-              <p><strong>Mã thợ:</strong> {selectedMechanic.maTho}</p>
-              <p><strong>Họ tên:</strong> {selectedMechanic.hoTen}</p>
-              <p><strong>Số điện thoại:</strong> {selectedMechanic.sdt}</p>
-              <p><strong>Chuyên môn:</strong> {selectedMechanic.chuyenMon}</p>
-              <p>
-                <strong>Trạng thái:</strong>{" "}
-                <span
-                  className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(
-                    selectedMechanic.trangThai
-                  )}`}
-                >
-                  {selectedMechanic.trangThai}
-                </span>
-              </p>
-              <p>
-                <strong>Lương:</strong>{" "}
-                <span className="font-semibold text-gray-900">
-                  {formatCurrency(selectedMechanic.luong)}
-                </span>
-              </p>
-            </div>
-
-            <div className="mt-5 text-right">
-              <button
-                onClick={closeModal}
-                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold"
-              >
-                Đóng
-              </button>
-            </div>
-          </div>
-        </div>
+      {isModalOpen && (
+        <Box
+          mode={modalMode}
+          title={getModalTitle()}
+          fields={mechanicFields}
+          initialData={editingData}
+          onClose={() => setIsModalOpen(false)}
+          onSubmit={handleSave}
+        />
       )}
     </div>
   );
